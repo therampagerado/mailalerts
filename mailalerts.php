@@ -172,6 +172,8 @@ class MailAlerts extends Module
             }
         }
 
+        $this->uninstallTab();
+
         return parent::uninstall();
     }
 
@@ -217,7 +219,49 @@ class MailAlerts extends Module
             }
         }
 
+        if (! $this->installTab()) {
+            return false;
+        }
+
         return true;
+    }
+
+    /**
+     * Install back office tab
+     *
+     * @return bool
+     * @throws PrestaShopException
+     */
+    protected function installTab()
+    {
+        if (Tab::getIdFromClassName('AdminMailalertsOos')) {
+            return true;
+        }
+
+        $tab = new Tab();
+        $tab->class_name = 'AdminMailalertsOos';
+        $tab->module = $this->name;
+        $tab->id_parent = (int) Tab::getIdFromClassName('AdminCatalog');
+        foreach (Language::getLanguages(true) as $lang) {
+            $tab->name[$lang['id_lang']] = $this->l('OOS Product Notifications');
+        }
+
+        return (bool) $tab->add();
+    }
+
+    /**
+     * Remove back office tab
+     *
+     * @return void
+     * @throws PrestaShopException
+     */
+    protected function uninstallTab()
+    {
+        $idTab = (int) Tab::getIdFromClassName('AdminMailalertsOos');
+        if ($idTab) {
+            $tab = new Tab($idTab);
+            $tab->delete();
+        }
     }
 
     /**
@@ -542,7 +586,7 @@ class MailAlerts extends Module
      * @throws PrestaShopException
      * @throws SmartyException
      */
-    protected function renderList()
+    public function renderList($controller = 'AdminModules')
     {
         $productId = (int)Tools::getValue('id_product');
 
@@ -587,14 +631,20 @@ class MailAlerts extends Module
             $helper->actions = ['delete'];
             $helper->no_link = true;
             $helper->show_toolbar = false;
-            $url = Context::getContext()->link->getAdminLink('AdminModules', true, [
-                'configure' => 'mailalerts',
-                'module_name' => 'mailalerts',
-            ]);
-            $helper->title = Translate::ppTags(sprintf($this->l('Notification for "%s". [1]Show all[/1]'), $productName, $productId),  ['<a href="'.$url.'#subscribers">']);
             $helper->table = $this->name;
-            $helper->token = Tools::getAdminTokenLite('AdminModules');
-            $helper->currentIndex = AdminController::$currentIndex . '&configure=' . $this->name;
+            $helper->token = Tools::getAdminTokenLite($controller);
+            if ($controller === 'AdminModules') {
+                $helper->currentIndex = AdminController::$currentIndex . '&configure=' . $this->name;
+                $url = Context::getContext()->link->getAdminLink('AdminModules', true, [
+                    'configure' => 'mailalerts',
+                    'module_name' => 'mailalerts',
+                ]);
+                $helper->title = Translate::ppTags(sprintf($this->l('Notification for "%s". [1]Show all[/1]'), $productName, $productId), ['<a href="'.$url.'#subscribers">']);
+            } else {
+                $helper->currentIndex = AdminController::$currentIndex;
+                $url = Context::getContext()->link->getAdminLink($controller);
+                $helper->title = Translate::ppTags(sprintf($this->l('Notification for "%s". [1]Show all[/1]'), $productName, $productId), ['<a href="'.$url.'">']);
+            }
             $content = $this->getProductListSubscribers($productId);
             $helper->listTotal = count($content);
             return $helper->generateList($content, $listFields);
@@ -637,8 +687,12 @@ class MailAlerts extends Module
             $helper->show_toolbar = false;
             $helper->title = $this->l('Products with notifications');
             $helper->table = $this->name;
-            $helper->token = Tools::getAdminTokenLite('AdminModules');
-            $helper->currentIndex = AdminController::$currentIndex . '&configure=' . $this->name;
+            $helper->token = Tools::getAdminTokenLite($controller);
+            if ($controller === 'AdminModules') {
+                $helper->currentIndex = AdminController::$currentIndex . '&configure=' . $this->name;
+            } else {
+                $helper->currentIndex = AdminController::$currentIndex;
+            }
             $content = $this->getProductsSubscribers();
             $helper->listTotal = count($content);
             return $helper->generateList($content, $listFields);
