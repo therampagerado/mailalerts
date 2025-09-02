@@ -171,6 +171,11 @@ class MailAlerts extends Module
                 return false;
             }
         }
+        $idTab = (int) Tab::getIdFromClassName('AdminOOSProductNotifications');
+        if ($idTab) {
+            $tab = new Tab($idTab);
+            $tab->delete();
+        }
 
         return parent::uninstall();
     }
@@ -215,6 +220,9 @@ class MailAlerts extends Module
             if (! $this->installDb()) {
                 return false;
             }
+        }
+        if (!$this->installTab()) {
+            return false;
         }
 
         return true;
@@ -542,9 +550,10 @@ class MailAlerts extends Module
      * @throws PrestaShopException
      * @throws SmartyException
      */
-    protected function renderList()
+    public function renderList()
     {
         $productId = (int)Tools::getValue('id_product');
+        $isOosController = Tools::getValue('controller') === 'AdminOOSProductNotifications';
 
         if ($productId) {
             $product = new Product($productId, false, $this->context->language->id);
@@ -587,14 +596,22 @@ class MailAlerts extends Module
             $helper->actions = ['delete'];
             $helper->no_link = true;
             $helper->show_toolbar = false;
-            $url = Context::getContext()->link->getAdminLink('AdminModules', true, [
-                'configure' => 'mailalerts',
-                'module_name' => 'mailalerts',
-            ]);
-            $helper->title = Translate::ppTags(sprintf($this->l('Notification for "%s". [1]Show all[/1]'), $productName, $productId),  ['<a href="'.$url.'#subscribers">']);
+            if ($isOosController) {
+                $url = Context::getContext()->link->getAdminLink('AdminOOSProductNotifications');
+            } else {
+                $url = Context::getContext()->link->getAdminLink('AdminModules', true, [
+                    'configure' => 'mailalerts',
+                    'module_name' => 'mailalerts',
+                ]) . '#subscribers';
+            }
+            $helper->title = Translate::ppTags(sprintf($this->l('Notification for "%s". [1]Show all[/1]'), $productName), ['<a href="'.$url.'">']);
             $helper->table = $this->name;
-            $helper->token = Tools::getAdminTokenLite('AdminModules');
-            $helper->currentIndex = AdminController::$currentIndex . '&configure=' . $this->name;
+            $currentIndex = AdminController::$currentIndex . ($isOosController ? '' : '&configure=' . $this->name);
+            if ($productId) {
+                $currentIndex .= '&id_product=' . $productId;
+            }
+            $helper->currentIndex = $currentIndex;
+            $helper->token = Tools::getAdminTokenLite($isOosController ? 'AdminOOSProductNotifications' : 'AdminModules');
             $content = $this->getProductListSubscribers($productId);
             $helper->listTotal = count($content);
             return $helper->generateList($content, $listFields);
@@ -637,8 +654,9 @@ class MailAlerts extends Module
             $helper->show_toolbar = false;
             $helper->title = $this->l('Products with notifications');
             $helper->table = $this->name;
-            $helper->token = Tools::getAdminTokenLite('AdminModules');
-            $helper->currentIndex = AdminController::$currentIndex . '&configure=' . $this->name;
+            $currentIndex = AdminController::$currentIndex . ($isOosController ? '' : '&configure=' . $this->name);
+            $helper->currentIndex = $currentIndex;
+            $helper->token = Tools::getAdminTokenLite($isOosController ? 'AdminOOSProductNotifications' : 'AdminModules');
             $content = $this->getProductsSubscribers();
             $helper->listTotal = count($content);
             return $helper->generateList($content, $listFields);
@@ -653,7 +671,7 @@ class MailAlerts extends Module
      * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      */
-    protected function getProductsSubscribers()
+    public function getProductsSubscribers()
     {
         $langId = (int)Context::getContext()->language->id;
         $conn = Db::getInstance();
@@ -688,7 +706,7 @@ class MailAlerts extends Module
      * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      */
-    protected function getProductListSubscribers($productId)
+    public function getProductListSubscribers($productId)
     {
         $langId = (int)Context::getContext()->language->id;
         $conn = Db::getInstance();
@@ -1450,6 +1468,29 @@ class MailAlerts extends Module
     }
 
     /**
+     * Create admin tab for notifications management
+     *
+     * @return bool
+     * @throws PrestaShopException
+     */
+    protected function installTab()
+    {
+        if (Tab::getIdFromClassName('AdminOOSProductNotifications')) {
+            return true;
+        }
+
+        $tab = new Tab();
+        $tab->class_name = 'AdminOOSProductNotifications';
+        $tab->id_parent = (int) Tab::getIdFromClassName('AdminCatalog');
+        $tab->module = $this->name;
+        foreach (Language::getLanguages(true) as $lang) {
+            $tab->name[$lang['id_lang']] = $this->l('OOS Product Notifications');
+        }
+
+        return $tab->save();
+    }
+
+    /**
      * Executes sql script
      * @param string $script
      * @param bool $check
@@ -1538,12 +1579,19 @@ class MailAlerts extends Module
     public function renderCnt($value, $row)
     {
         $productId = (int)$row['id_product'];
-        $url = Context::getContext()->link->getAdminLink('AdminModules', true, [
-            'configure' => 'mailalerts',
-            'module_name' => 'mailalerts',
-            'id_product' => $productId,
-        ]);
-        return '<a href="'.$url.'#subscribers">'.Tools::safeOutput($value).'</a>';
+        if (Tools::getValue('controller') === 'AdminOOSProductNotifications') {
+            $url = Context::getContext()->link->getAdminLink('AdminOOSProductNotifications', true, [
+                'id_product' => $productId,
+            ]);
+        } else {
+            $url = Context::getContext()->link->getAdminLink('AdminModules', true, [
+                'configure' => 'mailalerts',
+                'module_name' => 'mailalerts',
+                'id_product' => $productId,
+            ]) . '#subscribers';
+        }
+
+        return '<a href="'.$url.'">'.Tools::safeOutput($value).'</a>';
     }
 
 
