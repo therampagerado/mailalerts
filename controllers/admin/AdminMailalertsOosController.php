@@ -109,7 +109,7 @@ class AdminMailalertsOosController extends ModuleAdminController
             ]);
 
             $title = sprintf($this->l('Notification for "%s"%s. [1]Show all[/1]'), $productName, $combinationName ? ' - ' . $combinationName : '');
-            $helper->title = Translate::ppTags($title, ['<a href="' . $this->context->link->getAdminLink('AdminMailalertsOos') . '">']);
+            $helper->title = Translate::ppTags($title, ['<a href="' . htmlspecialchars($this->context->link->getAdminLink('AdminMailalertsOos')) . '">']);
 
             $list = $this->getProductListSubscribers($idProduct, $idProductAttribute);
             $helper->listTotal = count($list);
@@ -237,7 +237,7 @@ class AdminMailalertsOosController extends ModuleAdminController
             'id_customer' => $idCustomer,
             'viewcustomer' => 1,
         ]);
-        return '<a href="' . $url . '">' . Tools::safeOutput($value) . '</a>';
+        return '<a href="' . htmlspecialchars($url) . '">' . Tools::safeOutput($value) . '</a>';
     }
 
     /**
@@ -250,7 +250,7 @@ class AdminMailalertsOosController extends ModuleAdminController
             'id_product' => $idProduct,
             'updateproduct' => 1,
         ]);
-        return '<a href="' . $url . '">' . Tools::safeOutput($value) . '</a>';
+        return '<a href="' . htmlspecialchars($url) . '">' . Tools::safeOutput($value) . '</a>';
     }
 
     /**
@@ -264,7 +264,7 @@ class AdminMailalertsOosController extends ModuleAdminController
             'id_product' => $idProduct,
             'id_product_attribute' => $idProductAttribute,
         ]);
-        return '<a href="' . $url . '">' . (int) $value . '</a>';
+        return '<a href="' . htmlspecialchars($url) . '">' . (int) $value . '</a>';
     }
 
     /**
