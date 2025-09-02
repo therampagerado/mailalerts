@@ -41,7 +41,6 @@ class AdminMailalertsOosController extends ModuleAdminController
         if (Tools::isSubmit('delete' . MailAlert::$definition['table'])) {
             $id = (int) Tools::getValue(MailAlert::$definition['primary']);
             $idProduct = (int) Tools::getValue('id_product');
-            $idProductAttribute = (int) Tools::getValue('id_product_attribute');
 
             if ($id) {
                 Db::getInstance()->delete(MailAlert::$definition['table'], MailAlert::$definition['primary'] . ' = ' . $id);
@@ -49,7 +48,6 @@ class AdminMailalertsOosController extends ModuleAdminController
                 Tools::redirectAdmin(
                     $this->context->link->getAdminLink('AdminMailalertsOos', true, [], [
                         'id_product' => $idProduct,
-                        'id_product_attribute' => $idProductAttribute,
                     ])
                 );
             }
@@ -68,11 +66,10 @@ class AdminMailalertsOosController extends ModuleAdminController
     public function renderList()
     {
         $idProduct = (int) Tools::getValue('id_product');
-        $idProductAttribute = (int) Tools::getValue('id_product_attribute');
 
         if ($idProduct) {
-            $productName = Product::getProductName($idProduct, null, (int) $this->context->language->id);
-            $combinationName = $this->getCombinationName($idProductAttribute);
+            $product = new Product($idProduct, false, $this->context->language->id);
+            $productName = Validate::isLoadedObject($product) ? $product->name : $this->l('Deleted product');
 
             $fieldsList = [
                 'combination_name' => [
@@ -94,6 +91,10 @@ class AdminMailalertsOosController extends ModuleAdminController
                 ],
             ];
 
+            if (!$product->hasAttributes()) {
+                unset($fieldsList['combination_name']);
+            }
+
             $helper = new HelperList();
             $helper->shopLinkType = '';
             $helper->simple_header = true;
@@ -105,13 +106,12 @@ class AdminMailalertsOosController extends ModuleAdminController
             $helper->token = Tools::getAdminTokenLite('AdminMailalertsOos');
             $helper->currentIndex = $this->context->link->getAdminLink('AdminMailalertsOos', false, [], [
                 'id_product' => $idProduct,
-                'id_product_attribute' => $idProductAttribute,
             ]);
 
-            $title = sprintf($this->l('Notification for "%s"%s. [1]Show all[/1]'), $productName, $combinationName ? ' - ' . $combinationName : '');
+            $title = sprintf($this->l('Notification for "%s". [1]Show all[/1]'), $productName, $idProduct);
             $helper->title = Translate::ppTags($title, ['<a href="' . htmlspecialchars($this->context->link->getAdminLink('AdminMailalertsOos')) . '">']);
 
-            $list = $this->getProductListSubscribers($idProduct, $idProductAttribute);
+            $list = $this->getProductListSubscribers($idProduct);
             $helper->listTotal = count($list);
 
             return $helper->generateList($list, $fieldsList);
@@ -133,6 +133,7 @@ class AdminMailalertsOosController extends ModuleAdminController
             ],
             'combination_name' => [
                 'title' => $this->l('Combination'),
+                'type' => 'text',
             ],
             'cnt' => [
                 'title' => $this->l('Number of subscriptions'),
@@ -168,26 +169,20 @@ class AdminMailalertsOosController extends ModuleAdminController
 
         $sql = (new DbQuery())
             ->select('oos.id_product')
-            ->select('oos.id_product_attribute')
             ->select('NULLIF(p.reference, "") AS reference')
             ->select('NULLIF(pl.name, "") AS product_name')
-            ->select('COUNT(*) AS cnt')
-            ->select('IF(oos.id_product_attribute > 0, (
-                        SELECT GROUP_CONCAT(al.name ORDER BY agl.id_attribute_group SEPARATOR ", ")
-                        FROM `' . _DB_PREFIX_ . 'product_attribute_combination` pac
-                        LEFT JOIN `' . _DB_PREFIX_ . 'attribute` a ON a.id_attribute = pac.id_attribute
-                        LEFT JOIN `' . _DB_PREFIX_ . 'attribute_lang` al ON al.id_attribute = pac.id_attribute AND al.id_lang = ' . $idLang . '
-                        LEFT JOIN `' . _DB_PREFIX_ . 'attribute_group_lang` agl ON agl.id_attribute_group = a.id_attribute_group AND agl.id_lang = ' . $idLang . '
-                        WHERE pac.id_product_attribute = oos.id_product_attribute
-                        GROUP BY pac.id_product_attribute
-                    ), "") AS combination_name')
+            ->select('COUNT(DISTINCT oos.' . MailAlert::$definition['primary'] . ') AS cnt')
+            ->select('IF(oos.id_product_attribute > 0, GROUP_CONCAT(DISTINCT al.name ORDER BY agl.id_attribute_group SEPARATOR ", "), "") AS combination_name')
             ->from(MailAlert::$definition['table'], 'oos')
             ->leftJoin('product_lang', 'pl', 'pl.id_lang = ' . $idLang . ' AND pl.id_product = oos.id_product AND pl.id_shop = oos.id_shop')
             ->leftJoin('product', 'p', 'p.id_product = oos.id_product')
+            ->leftJoin('product_attribute_combination', 'pac', 'pac.id_product_attribute = oos.id_product_attribute')
+            ->leftJoin('attribute', 'a', 'a.id_attribute = pac.id_attribute')
+            ->leftJoin('attribute_lang', 'al', 'al.id_attribute = a.id_attribute AND al.id_lang = ' . $idLang)
+            ->leftJoin('attribute_group_lang', 'agl', 'agl.id_attribute_group = a.id_attribute_group AND agl.id_lang = ' . $idLang)
             ->where('1 ' . Shop::addSqlRestriction(false, 'oos'))
             ->groupBy('oos.id_product')
-            ->groupBy('oos.id_product_attribute')
-            ->orderBy('cnt DESC');
+            ->orderBy('COUNT(DISTINCT oos.' . MailAlert::$definition['primary'] . ') DESC');
 
         return Db::getInstance()->executeS($sql);
     }
@@ -195,30 +190,33 @@ class AdminMailalertsOosController extends ModuleAdminController
     /**
      * Get list of subscribers for given product/combination
      */
-    protected function getProductListSubscribers($idProduct, $idProductAttribute)
+    protected function getProductListSubscribers($idProduct)
     {
         $idLang = (int) $this->context->language->id;
 
         $sql = (new DbQuery())
             ->select('oos.' . MailAlert::$definition['primary'])
             ->select('oos.id_customer')
+            ->select('IF(oos.id_product_attribute > 0, oos.id_product_attribute, NULL)')
             ->select('oos.customer_email')
             ->select('oos.date_add')
-            ->select('IF(oos.id_product_attribute > 0, (
-                        SELECT GROUP_CONCAT(al.name ORDER BY agl.id_attribute_group SEPARATOR ", ")
-                        FROM `' . _DB_PREFIX_ . 'product_attribute_combination` pac
-                        LEFT JOIN `' . _DB_PREFIX_ . 'attribute` a ON a.id_attribute = pac.id_attribute
-                        LEFT JOIN `' . _DB_PREFIX_ . 'attribute_lang` al ON al.id_attribute = pac.id_attribute AND al.id_lang = ' . $idLang . '
-                        LEFT JOIN `' . _DB_PREFIX_ . 'attribute_group_lang` agl ON agl.id_attribute_group = a.id_attribute_group AND agl.id_lang = ' . $idLang . '
-                        WHERE pac.id_product_attribute = oos.id_product_attribute
-                        GROUP BY pac.id_product_attribute
+            ->select('COALESCE((
+                            SELECT GROUP_CONCAT(al.name ORDER BY agl.id_attribute_group SEPARATOR ", ")
+                             FROM `' . _DB_PREFIX_ . 'product_attribute_combination` pac
+                             LEFT JOIN `' . _DB_PREFIX_ . 'attribute` a ON a.id_attribute = pac.id_attribute
+                             LEFT JOIN `' . _DB_PREFIX_ . 'attribute_group` ag ON ag.id_attribute_group = a.id_attribute_group
+                             LEFT JOIN `' . _DB_PREFIX_ . 'attribute_lang` al ON (a.id_attribute = al.id_attribute AND al.id_lang = ' . $idLang . ')
+                             LEFT JOIN `' . _DB_PREFIX_ . 'attribute_group_lang` agl ON (ag.id_attribute_group = agl.id_attribute_group AND agl.id_lang = ' . $idLang . ')
+                             WHERE pac.id_product_attribute  = oos.id_product_attribute
+                             GROUP BY pac.id_product_attribute
                     ), "-") AS combination_name')
             ->select('IF(c.id_customer, CONCAT(c.firstname, " ", c.lastname), NULL) AS customer_name')
             ->from(MailAlert::$definition['table'], 'oos')
-            ->leftJoin('customer', 'c', 'c.id_customer = oos.id_customer')
-            ->where('oos.id_product = ' . (int) $idProduct)
-            ->where('oos.id_product_attribute = ' . (int) $idProductAttribute)
-            ->where('1 ' . Shop::addSqlRestriction(false, 'oos'))
+            ->leftJoin('product_lang', 'pl', 'pl.id_lang = ' . $idLang . ' AND pl.id_product = oos.id_product AND pl.id_shop = oos.id_shop')
+            ->leftJoin('customer', 'c', 'oos.id_customer = c.id_customer')
+            ->where('oos.id_product = ' . (int) $idProduct . Shop::addSqlRestriction(false, 'oos'))
+            ->orderBy('oos.id_product')
+            ->orderBy('oos.id_product_attribute')
             ->orderBy('oos.date_add');
 
         return Db::getInstance()->executeS($sql);
@@ -259,34 +257,10 @@ class AdminMailalertsOosController extends ModuleAdminController
     public function renderCnt($value, $row)
     {
         $idProduct = (int) $row['id_product'];
-        $idProductAttribute = (int) $row['id_product_attribute'];
         $url = $this->context->link->getAdminLink('AdminMailalertsOos', true, [], [
             'id_product' => $idProduct,
-            'id_product_attribute' => $idProductAttribute,
         ]);
         return '<a href="' . htmlspecialchars($url) . '">' . (int) $value . '</a>';
-    }
-
-    /**
-     * Get combination name for given product attribute
-     */
-    protected function getCombinationName($idProductAttribute)
-    {
-        if (!$idProductAttribute) {
-            return '';
-        }
-
-        $idLang = (int) $this->context->language->id;
-        $sql = (new DbQuery())
-            ->select('GROUP_CONCAT(al.name ORDER BY agl.id_attribute_group SEPARATOR ", ")')
-            ->from('product_attribute_combination', 'pac')
-            ->leftJoin('attribute', 'a', 'a.id_attribute = pac.id_attribute')
-            ->leftJoin('attribute_lang', 'al', 'al.id_attribute = pac.id_attribute AND al.id_lang = ' . $idLang)
-            ->leftJoin('attribute_group_lang', 'agl', 'agl.id_attribute_group = a.id_attribute_group AND agl.id_lang = ' . $idLang)
-            ->where('pac.id_product_attribute = ' . (int) $idProductAttribute)
-            ->groupBy('pac.id_product_attribute');
-
-        return (string) Db::getInstance()->getValue($sql);
     }
 }
 
