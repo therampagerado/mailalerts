@@ -1268,7 +1268,20 @@ class MailAlerts extends Module
      */
     private function installTab()
     {
-        $className = 'AdminOosProductNotifications';
+        $oldClassName = 'AdminOosProductNotifications';
+        $className = 'AdminMailalertsOos';
+
+        if ($idTab = (int)Tab::getIdFromClassName($oldClassName)) {
+            $tab = new Tab($idTab);
+            $tab->class_name = $className;
+            $tab->module = $this->name;
+            foreach (Language::getLanguages(false) as $lang) {
+                $tab->name[$lang['id_lang']] = $this->l('OOS Product Notifications');
+            }
+
+            return (bool)$tab->update();
+        }
+
         if (Tab::getIdFromClassName($className)) {
             return true;
         }
@@ -1293,7 +1306,10 @@ class MailAlerts extends Module
      */
     private function uninstallTab()
     {
-        $idTab = (int)Tab::getIdFromClassName('AdminOosProductNotifications');
+        $idTab = (int)Tab::getIdFromClassName('AdminMailalertsOos');
+        if (!$idTab) {
+            $idTab = (int)Tab::getIdFromClassName('AdminOosProductNotifications');
+        }
         if ($idTab) {
             $tab = new Tab($idTab);
             return (bool)$tab->delete();

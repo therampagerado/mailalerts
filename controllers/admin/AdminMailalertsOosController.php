@@ -17,19 +17,21 @@
  * @license   https://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
  */
 
+require_once __DIR__.'/../../classes/autoload.php';
+
 use MailAlertModule\MailAlert;
 
 if (!defined('_TB_VERSION_')) {
     exit;
 }
 
-class AdminOosProductNotificationsController extends ModuleAdminController
+class AdminMailalertsOosController extends ModuleAdminController
 {
     public function __construct()
     {
         $this->bootstrap = true;
         $this->table = MailAlert::$definition['table'];
-        $this->className = 'MailAlert';
+        $this->className = MailAlert::class;
         $this->identifier = MailAlert::$definition['primary'];
         $this->lang = false;
         parent::__construct();
