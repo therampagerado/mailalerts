@@ -89,6 +89,12 @@ class AdminMailalertsOosController extends ModuleAdminController
                     'title' => $this->l('Date'),
                     'type' => 'datetime',
                 ],
+                'ip_address' => [
+                    'title' => $this->l('IP address'),
+                ],
+                'user_agent' => [
+                    'title' => $this->l('User agent'),
+                ],
             ];
 
             if (!$product->hasAttributes()) {
@@ -200,6 +206,8 @@ class AdminMailalertsOosController extends ModuleAdminController
             ->select('IF(oos.id_product_attribute > 0, oos.id_product_attribute, NULL)')
             ->select('oos.customer_email')
             ->select('oos.date_add')
+            ->select('INET6_NTOA(oos.ip_address) AS ip_address')
+            ->select('oos.user_agent')
             ->select('COALESCE((
                             SELECT GROUP_CONCAT(al.name ORDER BY agl.id_attribute_group SEPARATOR ", ")
                              FROM `' . _DB_PREFIX_ . 'product_attribute_combination` pac

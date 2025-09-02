@@ -23,6 +23,8 @@ CREATE TABLE IF NOT EXISTS `PREFIX_mailalert_customer_oos` (
   `id_product_attribute` INT(11) unsigned NOT NULL,
   `id_shop` INT(11) unsigned NOT NULL,
   `id_lang` INT(11) unsigned NOT NULL,
+  `ip_address` VARBINARY(16) DEFAULT NULL,
+  `user_agent` VARCHAR(255) DEFAULT NULL,
   `date_add` DATETIME NOT NULL,
   UNIQUE KEY `cust_prod` (`id_customer`,`customer_email`,`id_product`,`id_product_attribute`,`id_shop`),
   PRIMARY KEY (`id_mailalert_customer_oos`)

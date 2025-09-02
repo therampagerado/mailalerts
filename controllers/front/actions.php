@@ -124,6 +124,8 @@ class MailalertsActionsModuleFrontController extends ModuleFrontController
         $mailAlert->id_product_attribute = (int) $idProductAttribute;
         $mailAlert->id_shop = (int) $idShop;
         $mailAlert->id_lang = (int) $idLang;
+        $mailAlert->ip_address = Tools::getRemoteAddr();
+        $mailAlert->user_agent = Tools::substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 255);
 
         if ($mailAlert->add() !== false) {
             die('1');

@@ -64,6 +64,8 @@ class MailAlert extends ObjectModel
             'id_product_attribute' => ['type' => self::TYPE_INT, 'validate' => 'isUnsignedInt', 'required' => true],
             'id_shop'              => ['type' => self::TYPE_INT, 'validate' => 'isUnsignedInt', 'required' => true],
             'id_lang'              => ['type' => self::TYPE_INT, 'validate' => 'isUnsignedInt', 'required' => true],
+            'ip_address'           => ['type' => self::TYPE_STRING, 'validate' => 'isAnything'],
+            'user_agent'           => ['type' => self::TYPE_STRING, 'validate' => 'isAnything'],
             'date_add'             => ['type' => self::TYPE_DATE,   'validate' => 'isDate'],
         ],
     ];
@@ -102,6 +104,46 @@ class MailAlert extends ObjectModel
      * @var string
      */
     public $date_add;
+
+    /**
+     * @var string
+     */
+    public $ip_address;
+
+    /**
+     * @var string
+     */
+    public $user_agent;
+
+    /**
+     * Override add to store IP and user agent
+     *
+     * @param bool $autoDate
+     * @param bool $nullValues
+     * @return bool
+     * @throws PrestaShopException
+     */
+    public function add($autoDate = true, $nullValues = false)
+    {
+        $data = [
+            'id_customer' => (int) $this->id_customer,
+            'customer_email' => pSQL($this->customer_email),
+            'id_product' => (int) $this->id_product,
+            'id_product_attribute' => (int) $this->id_product_attribute,
+            'id_shop' => (int) $this->id_shop,
+            'id_lang' => (int) $this->id_lang,
+            'date_add' => ['type' => 'sql', 'value' => 'NOW()'],
+            'ip_address' => ['type' => 'sql', 'value' => 'INET6_ATON("' . pSQL($this->ip_address) . '")'],
+            'user_agent' => pSQL($this->user_agent),
+        ];
+
+        $res = Db::getInstance()->insert(static::$definition['table'], $data);
+        if ($res) {
+            $this->id = Db::getInstance()->Insert_ID();
+        }
+
+        return $res;
+    }
 
     /**
      * @param int $idCustomer

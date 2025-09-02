@@ -1,11 +1,10 @@
-<?php
 /**
  * Copyright (C) 2017-2024 thirty bees
  *
  * NOTICE OF LICENSE
  *
  * This source file is subject to the Academic Free License (AFL 3.0)
- * that is bundled with this package in the file LICENSE.md
+ * that is bundled with this package in the file LICENSE.md.
  * It is also available through the world-wide-web at this URL:
  * https://opensource.org/licenses/afl-3.0.php
  * If you did not receive a copy of the license and are unable to
@@ -14,21 +13,8 @@
  *
  * @author    thirty bees <modules@thirtybees.com>
  * @copyright 2017-2024 thirty bees
- * @license   https://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
+ * @license   Academic Free License (AFL 3.0)
  */
-
-if (!defined('_TB_VERSION_')) {
-    exit;
-}
-
-/**
- * @param MailAlerts $module
- * @return bool
- * @throws PrestaShopException
- */
-function upgrade_module_4_6_0($module)
-{
-    $result = $module->executeSqlScript('update_4_6_0');
-    return $result && $module->installTab();
-}
-
+ALTER TABLE `PREFIX_mailalert_customer_oos`
+    ADD `ip_address` VARBINARY(16) NULL AFTER `id_lang`,
+    ADD `user_agent` VARCHAR(255) NULL AFTER `ip_address`;
