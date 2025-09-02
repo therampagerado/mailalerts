@@ -172,6 +172,10 @@ class MailAlerts extends Module
             }
         }
 
+        if (! $this->uninstallTab()) {
+            return false;
+        }
+
         return parent::uninstall();
     }
 
@@ -198,6 +202,10 @@ class MailAlerts extends Module
             !$this->registerHook('actionOrderEdited') ||
             !$this->registerHook('displayHeader')
         ) {
+            return false;
+        }
+
+        if (! $this->installTab()) {
             return false;
         }
 
@@ -230,29 +238,8 @@ class MailAlerts extends Module
      */
     public function getContent()
     {
-        if (Tools::isSubmit('delete' . $this->name)) {
-            $subscriberId = (int)Tools::getValue('id_mailalert_customer_oos');
-            $productId = (int)Tools::getValue('id_product');
-
-            if ($subscriberId) {
-                Db::getInstance()->delete('mailalert_customer_oos', 'id_mailalert_customer_oos = ' . $subscriberId);
-                $this->context->controller->confirmations[] = $this->l('The notification has been successfully deleted.');
-
-                Tools::redirectAdmin(Context::getContext()->link->getAdminLink('AdminModules', true, [
-                    'configure' => 'mailalerts',
-                    'module_name' => 'mailalerts',
-                    'id_product' => $productId,
-                ]) . '#subscribers');
-            }
-        }
-
         $html = $this->postProcess();
         $html .= $this->renderForm();
-
-        if ($this->customer_qty) {
-            $html .= "<a id='subscribers'></a>";
-            $html .= $this->renderList();
-        }
 
         return $html;
     }
@@ -542,7 +529,7 @@ class MailAlerts extends Module
      * @throws PrestaShopException
      * @throws SmartyException
      */
-    protected function renderList()
+    public function renderList()
     {
         $productId = (int)Tools::getValue('id_product');
 
@@ -587,14 +574,14 @@ class MailAlerts extends Module
             $helper->actions = ['delete'];
             $helper->no_link = true;
             $helper->show_toolbar = false;
-            $url = Context::getContext()->link->getAdminLink('AdminModules', true, [
-                'configure' => 'mailalerts',
-                'module_name' => 'mailalerts',
-            ]);
-            $helper->title = Translate::ppTags(sprintf($this->l('Notification for "%s". [1]Show all[/1]'), $productName, $productId),  ['<a href="'.$url.'#subscribers">']);
+            $url = Context::getContext()->link->getAdminLink('AdminMailAlertOos');
+            $helper->title = Translate::ppTags(
+                sprintf($this->l('Notification for "%s". [1]Show all[/1]'), $productName, $productId),
+                ['<a href="'.$url.'">']
+            );
             $helper->table = $this->name;
-            $helper->token = Tools::getAdminTokenLite('AdminModules');
-            $helper->currentIndex = AdminController::$currentIndex . '&configure=' . $this->name;
+            $helper->token = Tools::getAdminTokenLite('AdminMailAlertOos');
+            $helper->currentIndex = AdminController::$currentIndex . '&id_product=' . $productId;
             $content = $this->getProductListSubscribers($productId);
             $helper->listTotal = count($content);
             return $helper->generateList($content, $listFields);
@@ -637,8 +624,8 @@ class MailAlerts extends Module
             $helper->show_toolbar = false;
             $helper->title = $this->l('Products with notifications');
             $helper->table = $this->name;
-            $helper->token = Tools::getAdminTokenLite('AdminModules');
-            $helper->currentIndex = AdminController::$currentIndex . '&configure=' . $this->name;
+            $helper->token = Tools::getAdminTokenLite('AdminMailAlertOos');
+            $helper->currentIndex = AdminController::$currentIndex;
             $content = $this->getProductsSubscribers();
             $helper->listTotal = count($content);
             return $helper->generateList($content, $listFields);
@@ -653,7 +640,7 @@ class MailAlerts extends Module
      * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      */
-    protected function getProductsSubscribers()
+    public function getProductsSubscribers()
     {
         $langId = (int)Context::getContext()->language->id;
         $conn = Db::getInstance();
@@ -688,7 +675,7 @@ class MailAlerts extends Module
      * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      */
-    protected function getProductListSubscribers($productId)
+    public function getProductListSubscribers($productId)
     {
         $langId = (int)Context::getContext()->language->id;
         $conn = Db::getInstance();
@@ -1450,6 +1437,44 @@ class MailAlerts extends Module
     }
 
     /**
+     * Install back office tab
+     *
+     * @return bool
+     * @throws PrestaShopException
+     */
+    private function installTab()
+    {
+        $idParent = (int) Tab::getIdFromClassName('AdminCatalog');
+        $tab = new Tab();
+        $tab->active = 1;
+        $tab->class_name = 'AdminMailAlertOos';
+        $tab->id_parent = $idParent;
+        $tab->module = $this->name;
+        foreach (Language::getLanguages(true) as $lang) {
+            $tab->name[$lang['id_lang']] = $this->l('OOS Product Notifications');
+        }
+
+        return (bool) $tab->add();
+    }
+
+    /**
+     * Remove back office tab
+     *
+     * @return bool
+     * @throws PrestaShopException
+     */
+    private function uninstallTab()
+    {
+        $idTab = (int) Tab::getIdFromClassName('AdminMailAlertOos');
+        if ($idTab) {
+            $tab = new Tab($idTab);
+            return (bool) $tab->delete();
+        }
+
+        return true;
+    }
+
+    /**
      * Executes sql script
      * @param string $script
      * @param bool $check
@@ -1538,12 +1563,10 @@ class MailAlerts extends Module
     public function renderCnt($value, $row)
     {
         $productId = (int)$row['id_product'];
-        $url = Context::getContext()->link->getAdminLink('AdminModules', true, [
-            'configure' => 'mailalerts',
-            'module_name' => 'mailalerts',
+        $url = Context::getContext()->link->getAdminLink('AdminMailAlertOos', true, [
             'id_product' => $productId,
         ]);
-        return '<a href="'.$url.'#subscribers">'.Tools::safeOutput($value).'</a>';
+        return '<a href="'.$url.'">'.Tools::safeOutput($value).'</a>';
     }
 
 
@@ -1600,8 +1623,7 @@ class MailAlerts extends Module
     public function renderDeleteButton($value, $row)
     {
         $productId = (int)$row['id_product'];
-        $url = Context::getContext()->link->getAdminLink('AdminModules', true, [
-            'configure' => 'mailalerts',
+        $url = Context::getContext()->link->getAdminLink('AdminMailAlertOos', true, [
             'delete_mailalert' => 1,
             'id_product' => $productId,
         ]);
