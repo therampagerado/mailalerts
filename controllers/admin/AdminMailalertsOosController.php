@@ -30,55 +30,263 @@ class AdminMailalertsOosController extends ModuleAdminController
     public function __construct()
     {
         $this->bootstrap = true;
-        $this->table = MailAlert::$definition['table'];
-        $this->className = MailAlert::class;
-        $this->identifier = MailAlert::$definition['primary'];
-        $this->lang = false;
         parent::__construct();
-
-        $idLang = (int)$this->context->language->id;
-        $this->_select = 'pl.name AS product_name, '
-            . 'IF(a.id_product_attribute > 0, GROUP_CONCAT(DISTINCT al.name ORDER BY agl.id_attribute_group SEPARATOR ", "), "") AS combination';
-        $this->_join = 'LEFT JOIN '._DB_PREFIX_.'product_lang pl ON (pl.id_product = a.id_product AND pl.id_lang = '.$idLang.' AND pl.id_shop = a.id_shop) '
-            . 'LEFT JOIN '._DB_PREFIX_.'product_attribute_combination pac ON (pac.id_product_attribute = a.id_product_attribute) '
-            . 'LEFT JOIN '._DB_PREFIX_.'attribute attr ON (attr.id_attribute = pac.id_attribute) '
-            . 'LEFT JOIN '._DB_PREFIX_.'attribute_lang al ON (al.id_attribute = pac.id_attribute AND al.id_lang = '.$idLang.') '
-            . 'LEFT JOIN '._DB_PREFIX_.'attribute_group_lang agl ON (agl.id_attribute_group = attr.id_attribute_group AND agl.id_lang = '.$idLang.')';
-        $this->_group = 'GROUP BY a.'.$this->identifier;
-
-        $this->fields_list = [
-            $this->identifier => [
-                'title' => $this->l('ID'),
-                'class' => 'fixed-width-xs',
-            ],
-            'customer_email' => [
-                'title' => $this->l('Customer email'),
-            ],
-            'product_name' => [
-                'title' => $this->l('Product'),
-            ],
-            'combination' => [
-                'title' => $this->l('Combination'),
-                'orderby' => false,
-            ],
-            'date_add' => [
-                'title' => $this->l('Date'),
-                'type'  => 'datetime',
-            ],
-        ];
-
-        $this->bulk_actions = [
-            'delete' => [
-                'text' => $this->l('Delete selected'),
-                'confirm' => $this->l('Delete selected items?'),
-            ],
-        ];
     }
 
+    /**
+     * Handle delete action for a subscription
+     */
+    public function postProcess()
+    {
+        if (Tools::isSubmit('delete' . MailAlert::$definition['table'])) {
+            $id = (int) Tools::getValue(MailAlert::$definition['primary']);
+            $idProduct = (int) Tools::getValue('id_product');
+            $idProductAttribute = (int) Tools::getValue('id_product_attribute');
+
+            if ($id) {
+                Db::getInstance()->delete(MailAlert::$definition['table'], MailAlert::$definition['primary'] . ' = ' . $id);
+
+                Tools::redirectAdmin(
+                    $this->context->link->getAdminLink('AdminMailalertsOos', true, [], [
+                        'id_product' => $idProduct,
+                        'id_product_attribute' => $idProductAttribute,
+                    ])
+                );
+            }
+        }
+
+        parent::postProcess();
+    }
+
+    /**
+     * Render list of products or subscribers
+     *
+     * @return string
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
+     */
     public function renderList()
     {
-        $this->addRowAction('delete');
-        return parent::renderList();
+        $idProduct = (int) Tools::getValue('id_product');
+        $idProductAttribute = (int) Tools::getValue('id_product_attribute');
+
+        if ($idProduct) {
+            $productName = Product::getProductName($idProduct, null, (int) $this->context->language->id);
+            $combinationName = $this->getCombinationName($idProductAttribute);
+
+            $fieldsList = [
+                'combination_name' => [
+                    'title' => $this->l('Combination'),
+                    'type' => 'text',
+                ],
+                'customer_name' => [
+                    'title' => $this->l('Customer'),
+                    'type' => 'text',
+                    'callback_object' => $this,
+                    'callback' => 'renderCustomer',
+                ],
+                'customer_email' => [
+                    'title' => $this->l('Email'),
+                ],
+                'date_add' => [
+                    'title' => $this->l('Date'),
+                    'type' => 'datetime',
+                ],
+            ];
+
+            $helper = new HelperList();
+            $helper->shopLinkType = '';
+            $helper->simple_header = true;
+            $helper->identifier = MailAlert::$definition['primary'];
+            $helper->actions = ['delete'];
+            $helper->no_link = true;
+            $helper->show_toolbar = false;
+            $helper->table = MailAlert::$definition['table'];
+            $helper->token = Tools::getAdminTokenLite('AdminMailalertsOos');
+            $helper->currentIndex = $this->context->link->getAdminLink('AdminMailalertsOos', false, [], [
+                'id_product' => $idProduct,
+                'id_product_attribute' => $idProductAttribute,
+            ]);
+
+            $title = sprintf($this->l('Notification for "%s"%s. [1]Show all[/1]'), $productName, $combinationName ? ' - ' . $combinationName : '');
+            $helper->title = Translate::ppTags($title, ['<a href="' . $this->context->link->getAdminLink('AdminMailalertsOos') . '">']);
+
+            $list = $this->getProductListSubscribers($idProduct, $idProductAttribute);
+            $helper->listTotal = count($list);
+
+            return $helper->generateList($list, $fieldsList);
+        }
+
+        $fieldsList = [
+            'id_product' => [
+                'title' => $this->l('Product ID'),
+            ],
+            'reference' => [
+                'title' => $this->l('Reference'),
+                'callback_object' => $this,
+                'callback' => 'renderProduct',
+            ],
+            'product_name' => [
+                'title' => $this->l('Product Name'),
+                'callback_object' => $this,
+                'callback' => 'renderProduct',
+            ],
+            'combination_name' => [
+                'title' => $this->l('Combination'),
+            ],
+            'cnt' => [
+                'title' => $this->l('Number of subscriptions'),
+                'callback_object' => $this,
+                'callback' => 'renderCnt',
+            ],
+        ];
+
+        $helper = new HelperList();
+        $helper->shopLinkType = '';
+        $helper->simple_header = true;
+        $helper->identifier = 'id_product';
+        $helper->actions = [];
+        $helper->no_link = true;
+        $helper->show_toolbar = false;
+        $helper->title = $this->l('Products with notifications');
+        $helper->table = MailAlert::$definition['table'];
+        $helper->token = Tools::getAdminTokenLite('AdminMailalertsOos');
+        $helper->currentIndex = $this->context->link->getAdminLink('AdminMailalertsOos');
+
+        $list = $this->getProductsSubscribers();
+        $helper->listTotal = count($list);
+
+        return $helper->generateList($list, $fieldsList);
+    }
+
+    /**
+     * Get grouped list of subscribed products
+     */
+    protected function getProductsSubscribers()
+    {
+        $idLang = (int) $this->context->language->id;
+
+        $sql = (new DbQuery())
+            ->select('oos.id_product')
+            ->select('oos.id_product_attribute')
+            ->select('NULLIF(p.reference, "") AS reference')
+            ->select('NULLIF(pl.name, "") AS product_name')
+            ->select('COUNT(*) AS cnt')
+            ->select('IF(oos.id_product_attribute > 0, (
+                        SELECT GROUP_CONCAT(al.name ORDER BY agl.id_attribute_group SEPARATOR ", ")
+                        FROM `' . _DB_PREFIX_ . 'product_attribute_combination` pac
+                        LEFT JOIN `' . _DB_PREFIX_ . 'attribute` a ON a.id_attribute = pac.id_attribute
+                        LEFT JOIN `' . _DB_PREFIX_ . 'attribute_lang` al ON al.id_attribute = pac.id_attribute AND al.id_lang = ' . $idLang . '
+                        LEFT JOIN `' . _DB_PREFIX_ . 'attribute_group_lang` agl ON agl.id_attribute_group = a.id_attribute_group AND agl.id_lang = ' . $idLang . '
+                        WHERE pac.id_product_attribute = oos.id_product_attribute
+                        GROUP BY pac.id_product_attribute
+                    ), "") AS combination_name')
+            ->from(MailAlert::$definition['table'], 'oos')
+            ->leftJoin('product_lang', 'pl', 'pl.id_lang = ' . $idLang . ' AND pl.id_product = oos.id_product AND pl.id_shop = oos.id_shop')
+            ->leftJoin('product', 'p', 'p.id_product = oos.id_product')
+            ->where('1 ' . Shop::addSqlRestriction(false, 'oos'))
+            ->groupBy('oos.id_product')
+            ->groupBy('oos.id_product_attribute')
+            ->orderBy('cnt DESC');
+
+        return Db::getInstance()->executeS($sql);
+    }
+
+    /**
+     * Get list of subscribers for given product/combination
+     */
+    protected function getProductListSubscribers($idProduct, $idProductAttribute)
+    {
+        $idLang = (int) $this->context->language->id;
+
+        $sql = (new DbQuery())
+            ->select('oos.' . MailAlert::$definition['primary'])
+            ->select('oos.id_customer')
+            ->select('oos.customer_email')
+            ->select('oos.date_add')
+            ->select('IF(oos.id_product_attribute > 0, (
+                        SELECT GROUP_CONCAT(al.name ORDER BY agl.id_attribute_group SEPARATOR ", ")
+                        FROM `' . _DB_PREFIX_ . 'product_attribute_combination` pac
+                        LEFT JOIN `' . _DB_PREFIX_ . 'attribute` a ON a.id_attribute = pac.id_attribute
+                        LEFT JOIN `' . _DB_PREFIX_ . 'attribute_lang` al ON al.id_attribute = pac.id_attribute AND al.id_lang = ' . $idLang . '
+                        LEFT JOIN `' . _DB_PREFIX_ . 'attribute_group_lang` agl ON agl.id_attribute_group = a.id_attribute_group AND agl.id_lang = ' . $idLang . '
+                        WHERE pac.id_product_attribute = oos.id_product_attribute
+                        GROUP BY pac.id_product_attribute
+                    ), "-") AS combination_name')
+            ->select('IF(c.id_customer, CONCAT(c.firstname, " ", c.lastname), NULL) AS customer_name')
+            ->from(MailAlert::$definition['table'], 'oos')
+            ->leftJoin('customer', 'c', 'c.id_customer = oos.id_customer')
+            ->where('oos.id_product = ' . (int) $idProduct)
+            ->where('oos.id_product_attribute = ' . (int) $idProductAttribute)
+            ->where('1 ' . Shop::addSqlRestriction(false, 'oos'))
+            ->orderBy('oos.date_add');
+
+        return Db::getInstance()->executeS($sql);
+    }
+
+    /**
+     * Render customer cell with link
+     */
+    public function renderCustomer($value, $row)
+    {
+        $idCustomer = (int) $row['id_customer'];
+        if (!$idCustomer) {
+            return '-';
+        }
+        $url = $this->context->link->getAdminLink('AdminCustomers', true, [], [
+            'id_customer' => $idCustomer,
+            'viewcustomer' => 1,
+        ]);
+        return '<a href="' . $url . '">' . Tools::safeOutput($value) . '</a>';
+    }
+
+    /**
+     * Render product reference/name cell with link
+     */
+    public function renderProduct($value, $row)
+    {
+        $idProduct = (int) $row['id_product'];
+        $url = $this->context->link->getAdminLink('AdminProducts', true, [], [
+            'id_product' => $idProduct,
+            'updateproduct' => 1,
+        ]);
+        return '<a href="' . $url . '">' . Tools::safeOutput($value) . '</a>';
+    }
+
+    /**
+     * Render number of subscriptions with link to subscriber list
+     */
+    public function renderCnt($value, $row)
+    {
+        $idProduct = (int) $row['id_product'];
+        $idProductAttribute = (int) $row['id_product_attribute'];
+        $url = $this->context->link->getAdminLink('AdminMailalertsOos', true, [], [
+            'id_product' => $idProduct,
+            'id_product_attribute' => $idProductAttribute,
+        ]);
+        return '<a href="' . $url . '">' . (int) $value . '</a>';
+    }
+
+    /**
+     * Get combination name for given product attribute
+     */
+    protected function getCombinationName($idProductAttribute)
+    {
+        if (!$idProductAttribute) {
+            return '';
+        }
+
+        $idLang = (int) $this->context->language->id;
+        $sql = (new DbQuery())
+            ->select('GROUP_CONCAT(al.name ORDER BY agl.id_attribute_group SEPARATOR ", ")')
+            ->from('product_attribute_combination', 'pac')
+            ->leftJoin('attribute', 'a', 'a.id_attribute = pac.id_attribute')
+            ->leftJoin('attribute_lang', 'al', 'al.id_attribute = pac.id_attribute AND al.id_lang = ' . $idLang)
+            ->leftJoin('attribute_group_lang', 'agl', 'agl.id_attribute_group = a.id_attribute_group AND agl.id_lang = ' . $idLang)
+            ->where('pac.id_product_attribute = ' . (int) $idProductAttribute)
+            ->groupBy('pac.id_product_attribute');
+
+        return (string) Db::getInstance()->getValue($sql);
     }
 }
 
