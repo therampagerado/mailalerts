@@ -1268,19 +1268,7 @@ class MailAlerts extends Module
      */
     private function installTab()
     {
-        $oldClassName = 'AdminOosProductNotifications';
         $className = 'AdminMailalertsOos';
-
-        if ($idTab = (int)Tab::getIdFromClassName($oldClassName)) {
-            $tab = new Tab($idTab);
-            $tab->class_name = $className;
-            $tab->module = $this->name;
-            foreach (Language::getLanguages(false) as $lang) {
-                $tab->name[$lang['id_lang']] = $this->l('OOS Product Notifications');
-            }
-
-            return (bool)$tab->update();
-        }
 
         if (Tab::getIdFromClassName($className)) {
             return true;
@@ -1289,13 +1277,13 @@ class MailAlerts extends Module
         $tab = new Tab();
         $tab->class_name = $className;
         $tab->module = $this->name;
-        $tab->id_parent = (int)Tab::getIdFromClassName('AdminCatalog');
+        $tab->id_parent = (int) Tab::getIdFromClassName('AdminCatalog');
         $tab->active = 1;
         foreach (Language::getLanguages(false) as $lang) {
             $tab->name[$lang['id_lang']] = $this->l('OOS Product Notifications');
         }
 
-        return (bool)$tab->add();
+        return (bool) $tab->add();
     }
 
     /**
@@ -1306,13 +1294,9 @@ class MailAlerts extends Module
      */
     private function uninstallTab()
     {
-        $idTab = (int)Tab::getIdFromClassName('AdminMailalertsOos');
-        if (!$idTab) {
-            $idTab = (int)Tab::getIdFromClassName('AdminOosProductNotifications');
-        }
-        if ($idTab) {
+        if ($idTab = (int) Tab::getIdFromClassName('AdminMailalertsOos')) {
             $tab = new Tab($idTab);
-            return (bool)$tab->delete();
+            return (bool) $tab->delete();
         }
 
         return true;
