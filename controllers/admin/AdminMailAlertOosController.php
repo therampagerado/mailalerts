@@ -56,9 +56,8 @@ class AdminMailAlertOosController extends ModuleAdminController
         parent::postProcess();
     }
 
-    public function initContent()
+    public function renderList()
     {
-        $this->content = $this->module->renderList();
-        parent::initContent();
+        return $this->module->renderList();
     }
 }
