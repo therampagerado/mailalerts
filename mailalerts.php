@@ -172,7 +172,11 @@ class MailAlerts extends Module
             }
         }
 
-        return parent::uninstall();
+        if (!parent::uninstall()) {
+            return false;
+        }
+
+        return $this->uninstallTab();
     }
 
     /**
@@ -217,6 +221,35 @@ class MailAlerts extends Module
             }
         }
 
+        if (! $this->installTab()) {
+            return false;
+        }
+
+        return true;
+    }
+
+    protected function installTab()
+    {
+        $tab = new Tab();
+        $tab->class_name = 'AdminMailAlertOos';
+        $tab->module = $this->name;
+        $tab->id_parent = (int) Tab::getIdFromClassName('AdminCatalog');
+        $tab->active = 1;
+        foreach (Language::getLanguages(true) as $lang) {
+            $tab->name[$lang['id_lang']] = $this->l('OOS Product Notifications');
+        }
+
+        return (bool) $tab->add();
+    }
+
+    protected function uninstallTab()
+    {
+        $idTab = (int) Tab::getIdFromClassName('AdminMailAlertOos');
+        if ($idTab) {
+            $tab = new Tab($idTab);
+            return (bool) $tab->delete();
+        }
+
         return true;
     }
 
@@ -230,29 +263,8 @@ class MailAlerts extends Module
      */
     public function getContent()
     {
-        if (Tools::isSubmit('delete' . $this->name)) {
-            $subscriberId = (int)Tools::getValue('id_mailalert_customer_oos');
-            $productId = (int)Tools::getValue('id_product');
-
-            if ($subscriberId) {
-                Db::getInstance()->delete('mailalert_customer_oos', 'id_mailalert_customer_oos = ' . $subscriberId);
-                $this->context->controller->confirmations[] = $this->l('The notification has been successfully deleted.');
-
-                Tools::redirectAdmin(Context::getContext()->link->getAdminLink('AdminModules', true, [
-                    'configure' => 'mailalerts',
-                    'module_name' => 'mailalerts',
-                    'id_product' => $productId,
-                ]) . '#subscribers');
-            }
-        }
-
         $html = $this->postProcess();
         $html .= $this->renderForm();
-
-        if ($this->customer_qty) {
-            $html .= "<a id='subscribers'></a>";
-            $html .= $this->renderList();
-        }
 
         return $html;
     }
@@ -587,14 +599,11 @@ class MailAlerts extends Module
             $helper->actions = ['delete'];
             $helper->no_link = true;
             $helper->show_toolbar = false;
-            $url = Context::getContext()->link->getAdminLink('AdminModules', true, [
-                'configure' => 'mailalerts',
-                'module_name' => 'mailalerts',
-            ]);
-            $helper->title = Translate::ppTags(sprintf($this->l('Notification for "%s". [1]Show all[/1]'), $productName, $productId),  ['<a href="'.$url.'#subscribers">']);
+            $url = Context::getContext()->link->getAdminLink('AdminMailAlertOos');
+            $helper->title = Translate::ppTags(sprintf($this->l('Notification for "%s". [1]Show all[/1]'), $productName), ['<a href="'.$url.'">']);
             $helper->table = $this->name;
-            $helper->token = Tools::getAdminTokenLite('AdminModules');
-            $helper->currentIndex = AdminController::$currentIndex . '&configure=' . $this->name;
+            $helper->token = Tools::getAdminTokenLite('AdminMailAlertOos');
+            $helper->currentIndex = AdminController::$currentIndex;
             $content = $this->getProductListSubscribers($productId);
             $helper->listTotal = count($content);
             return $helper->generateList($content, $listFields);
@@ -637,8 +646,8 @@ class MailAlerts extends Module
             $helper->show_toolbar = false;
             $helper->title = $this->l('Products with notifications');
             $helper->table = $this->name;
-            $helper->token = Tools::getAdminTokenLite('AdminModules');
-            $helper->currentIndex = AdminController::$currentIndex . '&configure=' . $this->name;
+            $helper->token = Tools::getAdminTokenLite('AdminMailAlertOos');
+            $helper->currentIndex = AdminController::$currentIndex;
             $content = $this->getProductsSubscribers();
             $helper->listTotal = count($content);
             return $helper->generateList($content, $listFields);
