@@ -99,7 +99,7 @@ class MailAlerts extends Module
         $this->author = 'thirty bees';
         $this->need_instance = 0;
 
-        $this->controllers = ['account'];
+        $this->controllers = ['account', 'actions'];
 
         $this->bootstrap = true;
         parent::__construct();
