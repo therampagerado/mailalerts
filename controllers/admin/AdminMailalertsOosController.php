@@ -46,7 +46,7 @@ class AdminMailalertsOosController extends ModuleAdminController
                 Db::getInstance()->delete(MailAlert::$definition['table'], MailAlert::$definition['primary'] . ' = ' . $id);
 
                 Tools::redirectAdmin(
-                    $this->context->link->getAdminLink('AdminMailalertsOos', true, [], [
+                    $this->context->link->getAdminLink('AdminMailalertsOos', true, [
                         'id_product' => $idProduct,
                     ])
                 );
@@ -104,7 +104,7 @@ class AdminMailalertsOosController extends ModuleAdminController
             $helper->show_toolbar = false;
             $helper->table = MailAlert::$definition['table'];
             $helper->token = Tools::getAdminTokenLite('AdminMailalertsOos');
-            $helper->currentIndex = $this->context->link->getAdminLink('AdminMailalertsOos', false, [], [
+            $helper->currentIndex = $this->context->link->getAdminLink('AdminMailalertsOos', false, [
                 'id_product' => $idProduct,
             ]);
 
@@ -231,7 +231,7 @@ class AdminMailalertsOosController extends ModuleAdminController
         if (!$idCustomer) {
             return '-';
         }
-        $url = $this->context->link->getAdminLink('AdminCustomers', true, [], [
+        $url = $this->context->link->getAdminLink('AdminCustomers', true, [
             'id_customer' => $idCustomer,
             'viewcustomer' => 1,
         ]);
@@ -244,7 +244,7 @@ class AdminMailalertsOosController extends ModuleAdminController
     public function renderProduct($value, $row)
     {
         $idProduct = (int) $row['id_product'];
-        $url = $this->context->link->getAdminLink('AdminProducts', true, [], [
+        $url = $this->context->link->getAdminLink('AdminProducts', true, [
             'id_product' => $idProduct,
             'updateproduct' => 1,
         ]);
@@ -257,7 +257,7 @@ class AdminMailalertsOosController extends ModuleAdminController
     public function renderCnt($value, $row)
     {
         $idProduct = (int) $row['id_product'];
-        $url = $this->context->link->getAdminLink('AdminMailalertsOos', true, [], [
+        $url = $this->context->link->getAdminLink('AdminMailalertsOos', true, [
             'id_product' => $idProduct,
         ]);
         return '<a href="' . htmlspecialchars($url) . '">' . (int) $value . '</a>';
