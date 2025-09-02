@@ -172,6 +172,10 @@ class MailAlerts extends Module
             }
         }
 
+        if (! $this->uninstallTab()) {
+            return false;
+        }
+
         return parent::uninstall();
     }
 
@@ -217,6 +221,10 @@ class MailAlerts extends Module
             }
         }
 
+        if (! $this->installTab()) {
+            return false;
+        }
+
         return true;
     }
 
@@ -230,29 +238,10 @@ class MailAlerts extends Module
      */
     public function getContent()
     {
-        if (Tools::isSubmit('delete' . $this->name)) {
-            $subscriberId = (int)Tools::getValue('id_mailalert_customer_oos');
-            $productId = (int)Tools::getValue('id_product');
-
-            if ($subscriberId) {
-                Db::getInstance()->delete('mailalert_customer_oos', 'id_mailalert_customer_oos = ' . $subscriberId);
-                $this->context->controller->confirmations[] = $this->l('The notification has been successfully deleted.');
-
-                Tools::redirectAdmin(Context::getContext()->link->getAdminLink('AdminModules', true, [
-                    'configure' => 'mailalerts',
-                    'module_name' => 'mailalerts',
-                    'id_product' => $productId,
-                ]) . '#subscribers');
-            }
-        }
 
         $html = $this->postProcess();
         $html .= $this->renderForm();
 
-        if ($this->customer_qty) {
-            $html .= "<a id='subscribers'></a>";
-            $html .= $this->renderList();
-        }
 
         return $html;
     }
@@ -1610,5 +1599,28 @@ class MailAlerts extends Module
                     onclick="return confirm(\''.$this->l('Are you sure you want to delete this notification?').'\')">
                     '.$this->l('Delete').'
                 </a>';
+    }
+
+    protected function installTab()
+    {
+        $tab = new Tab();
+        $tab->class_name = 'AdminOosProductNotifications';
+        $tab->module = $this->name;
+        $tab->id_parent = (int)Tab::getIdFromClassName('AdminParentCatalog');
+        $tab->active = 1;
+        foreach (Language::getLanguages(true) as $lang) {
+            $tab->name[$lang['id_lang']] = $this->l('OOS Product Notifications');
+        }
+        return $tab->add();
+    }
+
+    protected function uninstallTab()
+    {
+        $idTab = (int)Tab::getIdFromClassName('AdminOosProductNotifications');
+        if ($idTab) {
+            $tab = new Tab($idTab);
+            return $tab->delete();
+        }
+        return true;
     }
 }
