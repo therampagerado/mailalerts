@@ -175,6 +175,7 @@ class AdminMailalertsOosController extends ModuleAdminController
     protected function getProductsSubscribers()
     {
         $idLang = (int) $this->context->language->id;
+        $hasShop = MailAlert::hasColumn('id_shop');
 
         $sql = (new DbQuery())
             ->select('oos.id_product')
@@ -183,13 +184,13 @@ class AdminMailalertsOosController extends ModuleAdminController
             ->select('COUNT(DISTINCT oos.' . MailAlert::$definition['primary'] . ') AS cnt')
             ->select('IF(oos.id_product_attribute > 0, GROUP_CONCAT(DISTINCT al.name ORDER BY agl.id_attribute_group SEPARATOR ", "), "") AS combination_name')
             ->from(MailAlert::$definition['table'], 'oos')
-            ->leftJoin('product_lang', 'pl', 'pl.id_lang = ' . $idLang . ' AND pl.id_product = oos.id_product AND pl.id_shop = oos.id_shop')
+            ->leftJoin('product_lang', 'pl', 'pl.id_lang = ' . $idLang . ' AND pl.id_product = oos.id_product' . ($hasShop ? ' AND pl.id_shop = oos.id_shop' : ' AND pl.id_shop = ' . (int) $this->context->shop->id))
             ->leftJoin('product', 'p', 'p.id_product = oos.id_product')
             ->leftJoin('product_attribute_combination', 'pac', 'pac.id_product_attribute = oos.id_product_attribute')
             ->leftJoin('attribute', 'a', 'a.id_attribute = pac.id_attribute')
             ->leftJoin('attribute_lang', 'al', 'al.id_attribute = a.id_attribute AND al.id_lang = ' . $idLang)
             ->leftJoin('attribute_group_lang', 'agl', 'agl.id_attribute_group = a.id_attribute_group AND agl.id_lang = ' . $idLang)
-            ->where('1 ' . Shop::addSqlRestriction(false, 'oos'))
+            ->where($hasShop ? '1 ' . Shop::addSqlRestriction(false, 'oos') : '1')
             ->groupBy('oos.id_product')
             ->orderBy('COUNT(DISTINCT oos.' . MailAlert::$definition['primary'] . ') DESC');
 
@@ -202,6 +203,7 @@ class AdminMailalertsOosController extends ModuleAdminController
     protected function getProductListSubscribers($idProduct)
     {
         $idLang = (int) $this->context->language->id;
+        $hasShop = MailAlert::hasColumn('id_shop');
 
         $sql = (new DbQuery())
             ->select('oos.' . MailAlert::$definition['primary'])
@@ -224,9 +226,9 @@ class AdminMailalertsOosController extends ModuleAdminController
                     ), "-") AS combination_name')
             ->select('IF(c.id_customer, CONCAT(c.firstname, " ", c.lastname), NULL) AS customer_name')
             ->from(MailAlert::$definition['table'], 'oos')
-            ->leftJoin('product_lang', 'pl', 'pl.id_lang = ' . $idLang . ' AND pl.id_product = oos.id_product AND pl.id_shop = oos.id_shop')
+            ->leftJoin('product_lang', 'pl', 'pl.id_lang = ' . $idLang . ' AND pl.id_product = oos.id_product' . ($hasShop ? ' AND pl.id_shop = oos.id_shop' : ' AND pl.id_shop = ' . (int) $this->context->shop->id))
             ->leftJoin('customer', 'c', 'oos.id_customer = c.id_customer')
-            ->where('oos.id_product = ' . (int) $idProduct . Shop::addSqlRestriction(false, 'oos'))
+            ->where('oos.id_product = ' . (int) $idProduct . ($hasShop ? Shop::addSqlRestriction(false, 'oos') : ''))
             ->orderBy('oos.id_product')
             ->orderBy('oos.id_product_attribute')
             ->orderBy('oos.date_add');

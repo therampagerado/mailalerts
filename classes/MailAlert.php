@@ -184,7 +184,7 @@ class MailAlert extends ObjectModel
      *
      * @return bool
      */
-    protected static function hasColumn($column)
+    public static function hasColumn($column)
     {
         static $columns = null;
         if ($columns === null) {
