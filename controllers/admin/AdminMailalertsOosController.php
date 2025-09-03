@@ -177,7 +177,7 @@ class AdminMailalertsOosController extends ModuleAdminController
         $list = $this->getProductsSubscribers();
         $helper->listTotal = count($list);
 
-        return $this->renderHint() . $helper->generateList($list, $fieldsList);
+        return $helper->generateList($list, $fieldsList);
     }
 
     /**
