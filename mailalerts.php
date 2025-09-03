@@ -1058,6 +1058,7 @@ class MailAlerts extends Module
         $controller = Dispatcher::getInstance()->getController();
         if (in_array($controller, ['product', 'account'])) {
             $this->context->controller->addCSS($this->_path.'css/mailalerts.css', 'all');
+            $this->context->controller->addJS($this->_path.'js/mailalerts.js');
         }
     }
 
