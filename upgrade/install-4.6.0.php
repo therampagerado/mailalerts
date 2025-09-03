@@ -32,11 +32,6 @@ function upgrade_module_4_6_0($module)
         return false;
     }
 
-    $table = _DB_PREFIX_ . 'mailalert_customer_oos';
-    if (Db::getInstance()->getValue('SHOW COLUMNS FROM `' . $table . '` LIKE "ip_address"')) {
-        Db::getInstance()->execute('ALTER TABLE `' . $table . '` DROP COLUMN `ip_address`');
-    }
-
     $module::ipHmacKey();
 
     return $module->installTab();
