@@ -167,7 +167,7 @@ class MailAlerts extends Module
             Configuration::deleteByName('MA_PRODUCT_COVERAGE');
             Configuration::deleteByName('MA_ORDER_EDIT');
             Configuration::deleteByName('MA_RETURN_SLIP');
-            Configuration::deleteGlobalValue('MAILALERTS_IP_HMAC_KEY');
+            Configuration::deleteByName('MAILALERTS_IP_HMAC_KEY');
             Configuration::deleteByName('MAILALERTS_OOS_RETENTION_DAYS');
             if (! $this->uninstallDb()) {
                 return false;
