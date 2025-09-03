@@ -18,5 +18,4 @@
 ALTER TABLE `PREFIX_mailalert_customer_oos`
   ADD COLUMN `ip_hash` VARBINARY(32) NULL AFTER `customer_email`,
   ADD COLUMN `ip_mask` VARBINARY(16) NULL AFTER `ip_hash`,
-  ADD COLUMN `ip_address` VARBINARY(16) NULL AFTER `id_lang`,
-  ADD COLUMN `user_agent` VARCHAR(255) NULL AFTER `ip_address`;
+  ADD COLUMN `user_agent` VARCHAR(255) NULL AFTER `id_lang`;

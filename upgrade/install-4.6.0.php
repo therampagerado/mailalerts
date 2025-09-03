@@ -29,6 +29,12 @@ if (!defined('_TB_VERSION_')) {
 function upgrade_module_4_6_0($module)
 {
     $result = $module->executeSqlScript('update_4_6_0');
+    if ($result) {
+        $table = _DB_PREFIX_ . 'mailalert_customer_oos';
+        if (Db::getInstance()->getValue('SHOW COLUMNS FROM `' . $table . '` LIKE "ip_address"')) {
+            $result = Db::getInstance()->execute('ALTER TABLE `' . $table . '` DROP COLUMN `ip_address`');
+        }
+    }
     return $result && $module->installTab();
 }
 

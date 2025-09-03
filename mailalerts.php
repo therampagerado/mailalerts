@@ -168,6 +168,7 @@ class MailAlerts extends Module
             Configuration::deleteByName('MA_ORDER_EDIT');
             Configuration::deleteByName('MA_RETURN_SLIP');
             Configuration::deleteByName('MAILALERTS_IP_HMAC_KEY');
+            Configuration::deleteByName('MAILALERTS_OOS_RETENTION_DAYS');
             if (! $this->uninstallDb()) {
                 return false;
             }
@@ -220,6 +221,7 @@ class MailAlerts extends Module
             Configuration::updateValue('MA_LAST_QTIES', (int) Configuration::get('PS_LAST_QTIES'));
             Configuration::updateGlobalValue('MA_MERCHANT_COVERAGE', 0);
             Configuration::updateGlobalValue('MA_PRODUCT_COVERAGE', 0);
+            Configuration::updateValue('MAILALERTS_OOS_RETENTION_DAYS', 365);
 
             if (! $this->installDb()) {
                 return false;
@@ -261,6 +263,8 @@ class MailAlerts extends Module
                 if (!Configuration::updateValue('MA_CUSTOMER_QTY', (int)Tools::getValue('MA_CUSTOMER_QTY'))) {
                     $errors[] = $this->l('Cannot update settings');
                 } elseif (!Configuration::updateGlobalValue('MA_ORDER_EDIT', (int)Tools::getValue('MA_ORDER_EDIT'))) {
+                    $errors[] = $this->l('Cannot update settings');
+                } elseif (!Configuration::updateValue('MAILALERTS_OOS_RETENTION_DAYS', (int)Tools::getValue('MAILALERTS_OOS_RETENTION_DAYS'))) {
                     $errors[] = $this->l('Cannot update settings');
                 }
             }
@@ -378,6 +382,14 @@ class MailAlerts extends Module
                                 'label' => $this->l('Disabled'),
                             ],
                         ],
+                    ],
+                    [
+                        'type'  => 'text',
+                        'label' => $this->l('Days to keep requests'),
+                        'name'  => 'MAILALERTS_OOS_RETENTION_DAYS',
+                        'class' => 'fixed-width-sm',
+                        'suffix' => $this->l('days'),
+                        'desc'  => $this->l('Retention period (days) for out-of-stock notification requests. There’s no need to retain aged requests or those for products that are no longer stockable.'),
                     ],
                 ],
                 'submit' => [
@@ -549,6 +561,7 @@ class MailAlerts extends Module
             'MA_MERCHANT_MAILS'    => Tools::getValue('MA_MERCHANT_MAILS', implode(static::__MA_MAIL_DELIMITOR__, static::getMerchantEmails())),
             'MA_ORDER_EDIT'        => Tools::getValue('MA_ORDER_EDIT', Configuration::get('MA_ORDER_EDIT')),
             'MA_RETURN_SLIP'       => Tools::getValue('MA_RETURN_SLIP', Configuration::get('MA_RETURN_SLIP')),
+            'MAILALERTS_OOS_RETENTION_DAYS' => Tools::getValue('MAILALERTS_OOS_RETENTION_DAYS', Configuration::get('MAILALERTS_OOS_RETENTION_DAYS')),
         ];
     }
 

@@ -133,6 +133,8 @@ class MailAlert extends ObjectModel
      */
     public function add($autoDate = true, $nullValues = false)
     {
+        self::pruneExpired();
+
         $ua = isset($_SERVER['HTTP_USER_AGENT']) ? Tools::substr($_SERVER['HTTP_USER_AGENT'], 0, 255) : null;
 
         $data = [
@@ -156,12 +158,6 @@ class MailAlert extends ObjectModel
             }
             if ($ipMask) {
                 $data['ip_mask'] = ['type' => 'sql', 'value' => '0x' . bin2hex($ipMask)];
-            }
-        } elseif (self::hasColumn('ip_address')) {
-            $ipStr = Tools::getRemoteAddr();
-            $ipBin = MailAlerts::ipToBin($ipStr);
-            if ($ipBin !== null) {
-                $data['ip_address'] = ['type' => 'sql', 'value' => '0x' . bin2hex($ipBin)];
             }
         }
 
@@ -198,6 +194,20 @@ class MailAlert extends ObjectModel
         }
 
         return isset($columns[$column]);
+    }
+
+    /**
+     * Remove expired notification requests
+     */
+    public static function pruneExpired()
+    {
+        $days = (int) Configuration::get('MAILALERTS_OOS_RETENTION_DAYS');
+        if ($days > 0) {
+            Db::getInstance()->delete(
+                static::$definition['table'],
+                'date_add < DATE_SUB(NOW(), INTERVAL ' . (int) $days . ' DAY)'
+            );
+        }
     }
 
     /**

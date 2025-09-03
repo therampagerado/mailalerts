@@ -33,6 +33,16 @@ class AdminMailalertsOosController extends ModuleAdminController
         parent::__construct();
     }
 
+    public function initPageHeaderToolbar()
+    {
+        parent::initPageHeaderToolbar();
+        $this->page_header_toolbar_btn['settings'] = [
+            'href' => $this->context->link->getAdminLink('AdminModules', true, ['configure' => 'mailalerts']),
+            'desc' => $this->l('Settings'),
+            'icon' => 'process-icon-cogs',
+        ];
+    }
+
     /**
      * Handle delete action for a subscription
      */
@@ -65,6 +75,7 @@ class AdminMailalertsOosController extends ModuleAdminController
      */
     public function renderList()
     {
+        MailAlert::pruneExpired();
         $idProduct = (int) Tools::getValue('id_product');
 
         if ($idProduct) {
@@ -123,7 +134,7 @@ class AdminMailalertsOosController extends ModuleAdminController
             $list = $this->getProductListSubscribers($idProduct);
             $helper->listTotal = count($list);
 
-            return $helper->generateList($list, $fieldsList);
+            return $this->renderHint() . $helper->generateList($list, $fieldsList);
         }
 
         $fieldsList = [
@@ -166,7 +177,7 @@ class AdminMailalertsOosController extends ModuleAdminController
         $list = $this->getProductsSubscribers();
         $helper->listTotal = count($list);
 
-        return $helper->generateList($list, $fieldsList);
+        return $this->renderHint() . $helper->generateList($list, $fieldsList);
     }
 
     /**
@@ -275,6 +286,11 @@ class AdminMailalertsOosController extends ModuleAdminController
             'id_product' => $idProduct,
         ]);
         return '<a href="' . htmlspecialchars($url) . '">' . (int) $value . '</a>';
+    }
+
+    protected function renderHint()
+    {
+        return '<div class="alert alert-warning">' . $this->l('IP and user-agent information is collected for security audit purposes. The IP is saved in pseudonymised form (masked prefix + keyed hash); use the hash to detect repeat requests from the same IP without revealing the full address.') . '</div>';
     }
 }
 
