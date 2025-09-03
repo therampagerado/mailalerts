@@ -36,6 +36,7 @@ use Db;
 use Hook;
 use Language;
 use Mail;
+use MailAlerts;
 use ObjectModel;
 use PrestaShopException;
 use Product;
