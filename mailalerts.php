@@ -1426,10 +1426,10 @@ class MailAlerts extends Module
     // --- IP privacy helpers (HMAC + mask) ---
     public static function ipHmacKey(): string
     {
-        $k = Configuration::get('MAILALERTS_IP_HMAC_KEY');
+        $k = Configuration::getGlobalValue('MAILALERTS_IP_HMAC_KEY');
         if (!$k) {
             $k = hash('sha256', _COOKIE_KEY_ . ':mailalerts:ip-hmac');
-            Configuration::updateValue('MAILALERTS_IP_HMAC_KEY', $k, true);
+            Configuration::updateGlobalValue('MAILALERTS_IP_HMAC_KEY', $k);
         }
         return $k;
     }
