@@ -16,6 +16,10 @@
  * @license   Academic Free License (AFL 3.0)
  */
 ALTER TABLE `PREFIX_mailalert_customer_oos`
-  ADD COLUMN `ip_hash` VARBINARY(32) NULL AFTER `customer_email`,
+  ADD COLUMN `ip_hash` VARBINARY(32) NULL AFTER `id_lang`,
   ADD COLUMN `ip_mask` VARBINARY(16) NULL AFTER `ip_hash`,
-  ADD COLUMN `user_agent` VARCHAR(255) NULL AFTER `id_lang`;
+  ADD COLUMN `user_agent` VARCHAR(255) NULL AFTER `ip_mask`;
+
+CREATE INDEX `idx_mailalert_oos_hash` ON `PREFIX_mailalert_customer_oos` (`ip_hash`);
+CREATE INDEX `idx_mailalert_oos_prod_shop` ON `PREFIX_mailalert_customer_oos` (`id_product`,`id_product_attribute`,`id_shop`);
+CREATE INDEX `idx_mailalert_oos_date` ON `PREFIX_mailalert_customer_oos` (`date_add`);

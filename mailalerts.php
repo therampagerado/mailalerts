@@ -167,7 +167,7 @@ class MailAlerts extends Module
             Configuration::deleteByName('MA_PRODUCT_COVERAGE');
             Configuration::deleteByName('MA_ORDER_EDIT');
             Configuration::deleteByName('MA_RETURN_SLIP');
-            Configuration::deleteByName('MAILALERTS_IP_HMAC_KEY');
+            Configuration::deleteGlobalValue('MAILALERTS_IP_HMAC_KEY');
             Configuration::deleteByName('MAILALERTS_OOS_RETENTION_DAYS');
             if (! $this->uninstallDb()) {
                 return false;
@@ -227,6 +227,8 @@ class MailAlerts extends Module
                 return false;
             }
         }
+
+        self::ipHmacKey();
 
         return true;
     }
@@ -389,7 +391,10 @@ class MailAlerts extends Module
                         'name'  => 'MAILALERTS_OOS_RETENTION_DAYS',
                         'class' => 'fixed-width-sm',
                         'suffix' => $this->l('days'),
-                        'desc'  => $this->l('Retention period (days) for out-of-stock notification requests. There’s no need to retain aged requests or those for products that are no longer stockable.'),
+                        'desc'  => $this->l('Retention period (days) for out-of-stock notification requests. There’s no need to retain aged requests or those for products that are no longer stockable.')
+                            . '<br><div class="alert alert-warning">'
+                            . $this->l('IP and user-agent information is collected for security audit purposes. The IP is saved in pseudonymised form (masked prefix + keyed hash); use the hash to detect repeat requests from the same IP without revealing the full address.')
+                            . '</div>',
                     ],
                 ],
                 'submit' => [
