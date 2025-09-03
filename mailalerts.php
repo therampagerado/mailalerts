@@ -903,7 +903,7 @@ class MailAlerts extends Module
         }
 
         if ($this->customer_qty && $quantity > 0) {
-            MailAlert::sendCustomerAlert((int) $product->id, (int) $params['id_product_attribute']);
+            MailAlert::sendCustomerAlert((int) $product->id, (int) $params['id_product_attribute'], $idShop);
         }
     }
 
@@ -915,14 +915,15 @@ class MailAlerts extends Module
     public function hookActionProductAttributeUpdate($params)
     {
         $sql = '
-			SELECT `id_product`, `quantity`
-			FROM `'._DB_PREFIX_.'stock_available`
-			WHERE `id_product_attribute` = '.(int) $params['id_product_attribute'];
+                        SELECT `id_product`, `quantity`
+                        FROM `'._DB_PREFIX_.'stock_available`
+                        WHERE `id_product_attribute` = '.(int) $params['id_product_attribute'];
 
         $result = Db::getInstance()->getRow($sql);
+        $idShop = (int) Context::getContext()->shop->id;
 
         if ($this->customer_qty && $result['quantity'] > 0) {
-            MailAlert::sendCustomerAlert((int) $result['id_product'], (int) $params['id_product_attribute']);
+            MailAlert::sendCustomerAlert((int) $result['id_product'], (int) $params['id_product_attribute'], $idShop);
         }
     }
 

@@ -391,11 +391,11 @@ class MailAlert extends ObjectModel
      *
      * @throws PrestaShopException
      */
-    public static function sendCustomerAlert($idProduct, $idProductAttribute)
+    public static function sendCustomerAlert($idProduct, $idProductAttribute, $idShop = null)
     {
         $link = Context::getContext()->link;
         $context = Context::getContext()->cloneContext();
-        $customers = static::getCustomers($idProduct, $idProductAttribute);
+        $customers = static::getCustomers($idProduct, $idProductAttribute, $idShop);
 
         foreach ($customers as $customer) {
             $idShop = (int) $customer['id_shop'];
@@ -461,12 +461,29 @@ class MailAlert extends ObjectModel
      *
      * @throws PrestaShopException
      */
-    public static function getCustomers($idProduct, $idProductAttribute)
+    public static function getCustomers($idProduct, $idProductAttribute, $idShop = null)
     {
+        $ctx = Context::getContext();
+        $idShop = $idShop !== null ? (int) $idShop : (int) $ctx->shop->id;
+
+        $shopIds = [$idShop];
+        if (self::hasColumn('id_shop')) {
+            $idGroup = (int) $ctx->shop->id_shop_group;
+            $group = new \ShopGroup($idGroup);
+            if (!empty($group->share_stock)) {
+                $shops = \Shop::getShops(true, $idGroup);
+                $shopIds = array_map(static function ($s) { return (int) $s['id_shop']; }, (array) $shops);
+            }
+        }
+
+        $in = implode(',', array_map('intval', $shopIds));
+
         $sql = '
-			SELECT id_customer, customer_email, id_shop, id_lang
-			FROM `'._DB_PREFIX_.static::$definition['table'].'`
-			WHERE `id_product` = '.(int) $idProduct.' AND `id_product_attribute` = '.(int) $idProductAttribute;
+        SELECT id_customer, customer_email, id_shop, id_lang
+        FROM `'._DB_PREFIX_.static::$definition['table'].'`
+        WHERE `id_product` = '.(int) $idProduct.'
+          AND `id_product_attribute` = '.(int) $idProductAttribute.'
+          AND `id_shop` IN ('.$in.')';
 
         $result = Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
         return is_array($result) ? $result : [];

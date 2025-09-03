@@ -49,17 +49,21 @@ class AdminMailalertsOosController extends ModuleAdminController
     public function postProcess()
     {
         if (Tools::isSubmit('delete' . MailAlert::$definition['table'])) {
+            if (!$this->checkToken()) {
+                $this->errors[] = $this->l('Invalid token.');
+                return parent::postProcess();
+            }
+            if (!$this->access('delete')) {
+                $this->errors[] = $this->l('You do not have permission to delete this item.');
+                return parent::postProcess();
+            }
+
             $id = (int) Tools::getValue(MailAlert::$definition['primary']);
             $idProduct = (int) Tools::getValue('id_product');
 
             if ($id) {
-                Db::getInstance()->delete(MailAlert::$definition['table'], MailAlert::$definition['primary'] . ' = ' . $id);
-
-                Tools::redirectAdmin(
-                    $this->context->link->getAdminLink('AdminMailalertsOos', true, [
-                        'id_product' => $idProduct,
-                    ])
-                );
+                Db::getInstance()->delete(MailAlert::$definition['table'], MailAlert::$definition['primary'].'='.(int)$id);
+                Tools::redirectAdmin($this->context->link->getAdminLink('AdminMailalertsOos', true, ['id_product' => $idProduct]));
             }
         }
 
