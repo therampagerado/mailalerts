@@ -1286,6 +1286,7 @@ class MailAlerts extends Module
      * @return bool
      * @throws PrestaShopException
      */
+
     public function installTab()
     {
         $className = 'AdminMailalertsOos';
