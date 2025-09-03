@@ -132,11 +132,6 @@ class MailAlert extends ObjectModel
      */
     public function add($autoDate = true, $nullValues = false)
     {
-        $ipStr  = Tools::getRemoteAddr();
-        $ipBin  = MailAlerts::ipToBin($ipStr);
-        $ipHash = MailAlerts::hashIpBinary($ipBin);
-        $ipMask = MailAlerts::maskIpBinary($ipBin);
-
         $ua = isset($_SERVER['HTTP_USER_AGENT']) ? Tools::substr($_SERVER['HTTP_USER_AGENT'], 0, 255) : null;
 
         $data = [
@@ -149,13 +144,27 @@ class MailAlert extends ObjectModel
             'date_add' => ['type' => 'sql', 'value' => 'NOW()'],
         ];
 
-        if ($ipHash) {
-            $data['ip_hash'] = ['type' => 'sql', 'value' => '0x' . bin2hex($ipHash)];
+        if (self::hasColumn('ip_hash') && self::hasColumn('ip_mask')) {
+            $ipStr  = Tools::getRemoteAddr();
+            $ipBin  = MailAlerts::ipToBin($ipStr);
+            $ipHash = MailAlerts::hashIpBinary($ipBin);
+            $ipMask = MailAlerts::maskIpBinary($ipBin);
+
+            if ($ipHash) {
+                $data['ip_hash'] = ['type' => 'sql', 'value' => '0x' . bin2hex($ipHash)];
+            }
+            if ($ipMask) {
+                $data['ip_mask'] = ['type' => 'sql', 'value' => '0x' . bin2hex($ipMask)];
+            }
+        } elseif (self::hasColumn('ip_address')) {
+            $ipStr = Tools::getRemoteAddr();
+            $ipBin = MailAlerts::ipToBin($ipStr);
+            if ($ipBin !== null) {
+                $data['ip_address'] = ['type' => 'sql', 'value' => '0x' . bin2hex($ipBin)];
+            }
         }
-        if ($ipMask) {
-            $data['ip_mask'] = ['type' => 'sql', 'value' => '0x' . bin2hex($ipMask)];
-        }
-        if ($ua) {
+
+        if ($ua && self::hasColumn('user_agent')) {
             $data['user_agent'] = pSQL($ua);
         }
 
@@ -165,6 +174,29 @@ class MailAlert extends ObjectModel
         }
 
         return $res;
+    }
+
+    /**
+     * Check if subscription table has a column
+     *
+     * @param string $column
+     *
+     * @return bool
+     */
+    protected static function hasColumn($column)
+    {
+        static $columns = null;
+        if ($columns === null) {
+            $rows = Db::getInstance()->executeS('SHOW COLUMNS FROM `'._DB_PREFIX_.static::$definition['table'].'`');
+            $columns = [];
+            if (is_array($rows)) {
+                foreach ($rows as $row) {
+                    $columns[$row['Field']] = true;
+                }
+            }
+        }
+
+        return isset($columns[$column]);
     }
 
     /**
