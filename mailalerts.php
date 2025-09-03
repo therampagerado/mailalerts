@@ -95,7 +95,7 @@ class MailAlerts extends Module
     {
         $this->name = 'mailalerts';
         $this->tab = 'administration';
-        $this->version = '4.6.0';
+        $this->version = '4.6.1';
         $this->author = 'thirty bees';
         $this->need_instance = 0;
 
@@ -167,6 +167,7 @@ class MailAlerts extends Module
             Configuration::deleteByName('MA_PRODUCT_COVERAGE');
             Configuration::deleteByName('MA_ORDER_EDIT');
             Configuration::deleteByName('MA_RETURN_SLIP');
+            Configuration::deleteByName('MAILALERTS_IP_HMAC_KEY');
             if (! $this->uninstallDb()) {
                 return false;
             }
@@ -1409,5 +1410,50 @@ class MailAlerts extends Module
                     onclick="return confirm(\''.$this->l('Are you sure you want to delete this notification?').'\')">
                     '.$this->l('Delete').'
                 </a>';
+    }
+    // --- IP privacy helpers (HMAC + mask) ---
+    public static function ipHmacKey(): string
+    {
+        $k = Configuration::get('MAILALERTS_IP_HMAC_KEY');
+        if (!$k) {
+            $k = hash('sha256', _COOKIE_KEY_ . ':mailalerts:ip-hmac');
+            Configuration::updateValue('MAILALERTS_IP_HMAC_KEY', $k, true);
+        }
+        return $k;
+    }
+
+    /** "1.2.3.4" or "2001:db8::1" -> binary (4 or 16 bytes) or null */
+    public static function ipToBin(?string $ip): ?string
+    {
+        if (!$ip) {
+            return null;
+        }
+        $bin = @inet_pton($ip);
+        return $bin === false ? null : $bin;
+    }
+
+    /** IPv4 -> /24, IPv6 -> /64, returned as binary prefix (same 4/16-byte shape) */
+    public static function maskIpBinary(?string $bin): ?string
+    {
+        if ($bin === null) {
+            return null;
+        }
+        $len = strlen($bin);
+        if ($len === 4) {
+            return substr($bin, 0, 3) . "\x00";
+        }
+        if ($len === 16) {
+            return substr($bin, 0, 8) . str_repeat("\x00", 8);
+        }
+        return null;
+    }
+
+    /** HMAC-SHA256 over binary IP → 32-byte binary digest */
+    public static function hashIpBinary(?string $bin): ?string
+    {
+        if ($bin === null) {
+            return null;
+        }
+        return hash_hmac('sha256', $bin, self::ipHmacKey(), true);
     }
 }

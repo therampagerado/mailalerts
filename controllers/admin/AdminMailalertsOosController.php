@@ -92,6 +92,9 @@ class AdminMailalertsOosController extends ModuleAdminController
                 'ip_address' => [
                     'title' => $this->l('IP address'),
                 ],
+                'ip_hash' => [
+                    'title' => $this->l('IP hash'),
+                ],
                 'user_agent' => [
                     'title' => $this->l('User agent'),
                 ],
@@ -206,7 +209,8 @@ class AdminMailalertsOosController extends ModuleAdminController
             ->select('IF(oos.id_product_attribute > 0, oos.id_product_attribute, NULL)')
             ->select('oos.customer_email')
             ->select('oos.date_add')
-            ->select('INET6_NTOA(oos.ip_address) AS ip_address')
+            ->select('COALESCE(INET6_NTOA(oos.ip_mask), "-") AS ip_address')
+            ->select('LOWER(HEX(oos.ip_hash)) AS ip_hash')
             ->select('oos.user_agent')
             ->select('COALESCE((
                             SELECT GROUP_CONCAT(al.name ORDER BY agl.id_attribute_group SEPARATOR ", ")

@@ -40,6 +40,7 @@ use ObjectModel;
 use PrestaShopException;
 use Product;
 use Shop;
+use Tools;
 use Validate;
 
 if (!defined('_TB_VERSION_')) {
@@ -64,7 +65,8 @@ class MailAlert extends ObjectModel
             'id_product_attribute' => ['type' => self::TYPE_INT, 'validate' => 'isUnsignedInt', 'required' => true],
             'id_shop'              => ['type' => self::TYPE_INT, 'validate' => 'isUnsignedInt', 'required' => true],
             'id_lang'              => ['type' => self::TYPE_INT, 'validate' => 'isUnsignedInt', 'required' => true],
-            'ip_address'           => ['type' => self::TYPE_STRING, 'validate' => 'isAnything'],
+            'ip_hash'              => ['type' => self::TYPE_STRING, 'validate' => 'isAnything'],
+            'ip_mask'              => ['type' => self::TYPE_STRING, 'validate' => 'isAnything'],
             'user_agent'           => ['type' => self::TYPE_STRING, 'validate' => 'isAnything'],
             'date_add'             => ['type' => self::TYPE_DATE,   'validate' => 'isDate'],
         ],
@@ -108,7 +110,12 @@ class MailAlert extends ObjectModel
     /**
      * @var string
      */
-    public $ip_address;
+    public $ip_hash;
+
+    /**
+     * @var string
+     */
+    public $ip_mask;
 
     /**
      * @var string
@@ -125,6 +132,13 @@ class MailAlert extends ObjectModel
      */
     public function add($autoDate = true, $nullValues = false)
     {
+        $ipStr  = Tools::getRemoteAddr();
+        $ipBin  = MailAlerts::ipToBin($ipStr);
+        $ipHash = MailAlerts::hashIpBinary($ipBin);
+        $ipMask = MailAlerts::maskIpBinary($ipBin);
+
+        $ua = isset($_SERVER['HTTP_USER_AGENT']) ? Tools::substr($_SERVER['HTTP_USER_AGENT'], 0, 255) : null;
+
         $data = [
             'id_customer' => (int) $this->id_customer,
             'customer_email' => pSQL($this->customer_email),
@@ -133,9 +147,17 @@ class MailAlert extends ObjectModel
             'id_shop' => (int) $this->id_shop,
             'id_lang' => (int) $this->id_lang,
             'date_add' => ['type' => 'sql', 'value' => 'NOW()'],
-            'ip_address' => ['type' => 'sql', 'value' => 'INET6_ATON("' . pSQL($this->ip_address) . '")'],
-            'user_agent' => pSQL($this->user_agent),
         ];
+
+        if ($ipHash) {
+            $data['ip_hash'] = ['type' => 'sql', 'value' => '0x' . bin2hex($ipHash)];
+        }
+        if ($ipMask) {
+            $data['ip_mask'] = ['type' => 'sql', 'value' => '0x' . bin2hex($ipMask)];
+        }
+        if ($ua) {
+            $data['user_agent'] = pSQL($ua);
+        }
 
         $res = Db::getInstance()->insert(static::$definition['table'], $data);
         if ($res) {

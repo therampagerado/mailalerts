@@ -19,6 +19,8 @@ CREATE TABLE IF NOT EXISTS `PREFIX_mailalert_customer_oos` (
   `id_mailalert_customer_oos` int unsigned NOT NULL AUTO_INCREMENT,
   `id_customer` INT(11) unsigned NOT NULL,
   `customer_email` VARCHAR(128) NOT NULL,
+  `ip_hash` VARBINARY(32) DEFAULT NULL,
+  `ip_mask` VARBINARY(16) DEFAULT NULL,
   `id_product` INT(11) unsigned NOT NULL,
   `id_product_attribute` INT(11) unsigned NOT NULL,
   `id_shop` INT(11) unsigned NOT NULL,
